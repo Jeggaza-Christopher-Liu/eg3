@@ -6,21 +6,8 @@ import { ThreeScene } from "./ThreeScene";
 import { getSplinesFromG3dData, type SplineData, type G3dRawData, type HighlightRegion } from "./threeG3dUtil";
 import "./ThreeG3dContainer.css";
 
-/**
- * Drop-in replacement for ThreedmolContainer that renders the g3d structure
- * with the (react-three-fiber based) 3d_browser viewer instead of 3Dmol.js.
- *
- * Scope: loads the g3d file, renders chromosomes as colored splines with
- * optional labels, and highlights whatever region(s) the genome browser is
- * currently showing (kept in sync as the user navigates/zooms/selects a
- * region set). Painting (bigwig/compartment/annotation/expression), custom
- * shapes/arrows, image labels, the envelope, spin, resolution switching and
- * frame animation from the old 3Dmol viewer are not reimplemented here.
- */
 
 interface ComponentProps {
-  // kept so callers (GenomeRoot) don't need to change what they pass in;
-  // unused ones are accepted and ignored for now.
   onToggleSync3d?: any;
   sync3d?: any;
   tracks: TrackModel[];
@@ -116,11 +103,7 @@ class ThreeG3dContainer extends React.Component<ComponentProps, ComponentState> 
     this.setState((prev) => ({ showChromLabels: !prev.showChromLabels }));
   };
 
-  /**
-   * Same logic as the old ThreedmolContainer.viewRegionToRegions: turns the
-   * browser's current view region (or the selected region set) into a list
-   * of {chrom, start, end} regions to highlight in the 3D view.
-   */
+
   viewRegionToRegions = (): Array<{ chrom: string; start: number; end: number }> => {
     const { viewRegion, genomeConfig, selectedSet } = this.props;
     if (!viewRegion || !genomeConfig) return [];

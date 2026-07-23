@@ -42,18 +42,15 @@ const ChromosomeLine = ({
   const points = useMemo(() => spline.getPoints(LINE_SEGMENTS), [spline]);
   const startPoint = points[0];
 
-  // Map each highlighted bp region onto the curve's original control points
-  // (not the resampled `points` above) so the highlighted stretch lines up
-  // with the actual genomic coordinates carried in `starts`.
   const highlightSegments = useMemo(() => {
     if (!highlights || !highlights.length || !starts || !starts.length) return [];
     const controlPoints = (spline as any).points;
     return highlights
       .map((h) => {
-        const loIdx = bpToClosestIndex(starts, h.start);
-        const hiIdx = bpToClosestIndex(starts, h.end);
-        const from = Math.max(0, Math.min(loIdx, hiIdx));
-        const to = Math.min(controlPoints.length - 1, Math.max(loIdx, hiIdx));
+        const lowIdx = bpToClosestIndex(starts, h.start);
+        const highIdx = bpToClosestIndex(starts, h.end);
+        const from = Math.max(0, Math.min(lowIdx, highIdx));
+        const to = Math.min(controlPoints.length - 1, Math.max(lowIdx, highIdx));
         if (to <= from) return null;
         return {
           key: `${h.chrom}-${h.start}-${h.end}`,
