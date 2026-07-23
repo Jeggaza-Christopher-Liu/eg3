@@ -1,0 +1,575 @@
+import {
+  useAppDispatch,
+  useAppSelector,
+  useUndoRedo,
+} from "../../lib/redux/hooks";
+
+import GenomePicker from "../genome-picker/GenomePicker";
+
+import TabView from "../ui/tab-view/TabView";
+import AddCustomGenome from "../genome-hub/AddCustomGenome";
+import ImportSession from "../sessions/ImportSession";
+import SessionList from "../sessions/SessionList";
+
+import GenomeView from "../genome-view/GenomeView";
+import NavBar from "../navbar/NavBar";
+import {
+  createSession,
+  selectCurrentSessionId,
+  setCurrentSession,
+  updateCurrentSession,
+  selectSessions,
+  selectCurrentSession,
+} from "@/lib/redux/slices/browserSlice";
+
+import GoogleAnalytics from "./GoogleAnalytics";
+import useBrowserInitialization from "@/lib/hooks/useBrowserInitialization";
+import GenomeErrorBoundary from "../genome-view/GenomeErrorBoundary";
+import MouseFollowingTooltip from "../ui/tooltip/MouseFollowingTooltip";
+
+import * as firebase from "firebase/app";
+import {
+  selectDarkTheme,
+  setNavBarVisibility,
+  setNavigatorVisibility,
+  setToolBarVisibility,
+  selectIsNavBarVisible,
+  setDarkTheme,
+} from "@/lib/redux/slices/settingsSlice";
+import {
+  selectNavigationTab,
+  setNavigationTab,
+  selectNavSearchOpen,
+  setNavSearchOpen,
+  selectGenomePickerTab,
+  setGenomePickerTab,
+} from "@/lib/redux/slices/navigationSlice";
+import {
+  setToggleTool,
+  escapeTools,
+  resetUtility,
+} from "@/lib/redux/slices/utilitySlice";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { motion, AnimatePresence } from "framer-motion";
+
+import {
+  getGenomeConfig,
+  ITrackModel,
+  GenomeCoordinate,
+  GenomeSerializer,
+  GenomeHubManager,
+  IGenome,
+} from "wuepgg3-track";
+
+import { resetState } from "@/lib/redux/slices/hubSlice";
+import ResizablePanel from "../ui/panel/ResizablePanel";
+import { PortalContext, EscapeHandlerContext } from "wuepgg3-track";
+import { addCustomGenomeRemote } from "../../lib/redux/thunk/genome-hub";
+import { AppProps } from "../../App";
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+};
+
+firebase.initializeApp(firebaseConfig);
+
+export default function RootLayout(props: AppProps) {
+  useBrowserInitialization();
+
+  const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const escapeHandlerRef = useRef<(() => void) | null>(null);
+  const dispatch = useAppDispatch();
+  const sessionId = useAppSelector(selectCurrentSessionId);
+  const sessions = useAppSelector(selectSessions);
+  const currentSession = useAppSelector(selectCurrentSession);
+  const darkTheme = useAppSelector(selectDarkTheme);
+  const { clearHistory } = useUndoRedo();
+  const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const navBarRef = useRef<HTMLDivElement>(null);
+  const [navBarHeight, setNavBarHeight] = useState(48);
+  const currentTab = useAppSelector(selectNavigationTab);
+  const navSearchOpen = useAppSelector(selectNavSearchOpen);
+  const genomePickerTab = useAppSelector(selectGenomePickerTab);
+  const initialState = useRef(true);
+  const handlePortalRef = useCallback((el: HTMLDivElement | null) => {
+    setPortalContainer(el);
+  }, []);
+  const year = useMemo(() => new Date().getFullYear(), []);
+  useEffect(() => {
+    const el = navBarRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setNavBarHeight(el.offsetHeight));
+    observer.observe(el);
+    setNavBarHeight(el.offsetHeight);
+    return () => observer.disconnect();
+  }, []);
+
+  // Escape closes the session panel and/or the active nav tab, the search bar,
+  // and unselects all toggle tools (drag is unaffected).
+  // Alt+key shortcuts dispatch the corresponding toggle tools.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey) {
+        switch (event.key.toLowerCase()) {
+          case "h":
+          case "d":
+            event.preventDefault();
+            dispatch(setToggleTool("Drag"));
+            break;
+          case "r":
+          case "s":
+            event.preventDefault();
+            dispatch(setToggleTool("Reorder"));
+            break;
+          case "m":
+            event.preventDefault();
+            dispatch(setToggleTool("Zoom"));
+            break;
+          case "n":
+            event.preventDefault();
+            dispatch(setToggleTool("Highlight"));
+            break;
+        }
+        return;
+      }
+      if (event.key !== "Escape") return;
+      escapeHandlerRef.current?.();
+      if (leftPanelOpen) setLeftPanelOpen(false);
+      if (currentTab !== null) dispatch(setNavigationTab(null));
+      if (navSearchOpen) dispatch(setNavSearchOpen(false));
+      dispatch(escapeTools());
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [leftPanelOpen, currentTab, navSearchOpen, dispatch]);
+
+  // Check if running in package mode (props explicitly passed) or web mode
+  const isPackageMode =
+    (props.genomeName || (props.genomeName && props.chromosomes)) &&
+    props.tracks &&
+    props.viewRegion;
+  const emptyPropsPackageMode =
+    props.genomeName || props.tracks || props.viewRegion;
+  const handleGoHome = () => {
+    dispatch(setCurrentSession(null));
+  };
+
+  const isNavBarVisible = useAppSelector(selectIsNavBarVisible);
+
+  // Reset state when session is cleared
+  useEffect(() => {
+    setLeftPanelOpen(false);
+    dispatch(resetState());
+    dispatch(resetUtility());
+    clearHistory();
+  }, [sessionId]);
+  const showNavBar = isPackageMode ? isNavBarVisible : true;
+
+  useEffect(() => {
+    if (isPackageMode || emptyPropsPackageMode) {
+      if (typeof props.showGenomeNavigator === "boolean") {
+        dispatch(setNavigatorVisibility(props.showGenomeNavigator));
+      }
+      if (typeof props.showNavBar === "boolean") {
+        dispatch(setNavBarVisibility(props.showNavBar));
+      }
+      if (typeof props.showToolBar === "boolean") {
+        dispatch(setToolBarVisibility(props.showToolBar));
+      }
+      if (typeof props.darkMode === "boolean") {
+        dispatch(setDarkTheme(props.darkMode));
+      }
+    }
+    // In web mode, ensure defaults are set to true (override any persisted false values)
+    else {
+      dispatch(setNavigatorVisibility(true));
+      dispatch(setNavBarVisibility(true));
+      dispatch(setToolBarVisibility(true));
+    }
+  }, [
+    isPackageMode,
+    props.showGenomeNavigator,
+    props.showNavBar,
+    props.showToolBar,
+
+    props.darkMode,
+  ]);
+
+  useEffect(() => {
+    let viewRegion: any = props.viewRegion;
+
+    if (
+      props.viewRegion &&
+      typeof props.viewRegion === "object" &&
+      !Array.isArray(props.viewRegion)
+    ) {
+      if (props.viewRegion["genomeCoordinate"]) {
+        viewRegion = viewRegion["genomeCoordinate"];
+      }
+    }
+
+    let curGenomeConfig: any = null;
+    if (
+      props.chromosomes &&
+      props.chromosomes.length > 0 &&
+      props.tracks &&
+      typeof props.genomeName === "string"
+    ) {
+      const _newGenomeConfig = {
+        id: props.genomeName,
+        name: props.genomeName,
+        chromosomes: props.chromosomes,
+        defaultTracks: props.tracks.map((item: any) => ({
+          ...item,
+          waitToUpdate: true,
+        })),
+      };
+
+      dispatch(addCustomGenomeRemote(_newGenomeConfig));
+      curGenomeConfig = _newGenomeConfig;
+    } else if (
+      typeof props.genomeName === "string" &&
+      getGenomeConfig(props.genomeName)
+    ) {
+      const genomeconfig = getGenomeConfig(props.genomeName);
+      curGenomeConfig = GenomeSerializer.serialize(genomeconfig);
+    } else if (typeof props.genomeName === "string") {
+      curGenomeConfig = GenomeHubManager.getInstance().getGenomeFromCache(
+        props.genomeName,
+      );
+    }
+
+    if (curGenomeConfig && !sessionId && isPackageMode) {
+      dispatch(
+        createSession({
+          genome: curGenomeConfig as IGenome,
+
+          viewRegion:
+            typeof viewRegion !== "string" || viewRegion === null
+              ? undefined
+              : (viewRegion as GenomeCoordinate),
+
+          additionalTracks: props.tracks ? (props.tracks as ITrackModel[]) : [],
+          width:
+            props.width !== null && props.width !== undefined
+              ? props.width
+              : null,
+          height:
+            props.height !== null && props.height !== undefined
+              ? props.height
+              : null,
+        }),
+      );
+    } else if (curGenomeConfig && sessionId && isPackageMode) {
+      dispatch(
+        updateCurrentSession({
+          tracks: props.tracks || ([] as ITrackModel[]),
+          viewRegion: viewRegion as GenomeCoordinate,
+          userViewRegion: viewRegion as GenomeCoordinate,
+        }),
+      );
+    }
+
+    initialState.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (
+      sessionId &&
+      props.viewRegion &&
+      props.genomeName &&
+      props.tracks &&
+      isPackageMode &&
+      !initialState.current
+    ) {
+      let viewRegion: any = props.viewRegion;
+
+      if (
+        props.viewRegion &&
+        typeof props.viewRegion === "object" &&
+        !Array.isArray(props.viewRegion)
+      ) {
+        if (props.viewRegion["genomeCoordinate"]) {
+          viewRegion = viewRegion["genomeCoordinate"];
+        }
+      }
+
+      let curGenomeConfig: any = null;
+      if (
+        props.chromosomes &&
+        props.chromosomes.length > 0 &&
+        props.tracks &&
+        typeof props.genomeName === "string"
+      ) {
+        const _newGenomeConfig = {
+          id: props.genomeName,
+          name: props.genomeName,
+          chromosomes: props.chromosomes,
+          defaultTracks: props.tracks.map((item: any) => ({
+            ...item,
+            waitToUpdate: true,
+          })),
+        };
+
+        dispatch(addCustomGenomeRemote(_newGenomeConfig));
+        curGenomeConfig = _newGenomeConfig;
+      } else if (
+        typeof props.genomeName === "string" &&
+        getGenomeConfig(props.genomeName)
+      ) {
+        const genomeconfig = getGenomeConfig(props.genomeName);
+        curGenomeConfig = GenomeSerializer.serialize(genomeconfig);
+      } else if (typeof props.genomeName === "string") {
+        curGenomeConfig = GenomeHubManager.getInstance().getGenomeFromCache(
+          props.genomeName,
+        );
+      }
+
+      if (
+        curGenomeConfig &&
+        currentSession &&
+        viewRegion &&
+        props.genomeName &&
+        props.tracks
+      ) {
+        dispatch(
+          updateCurrentSession({
+            genomeId: props.genomeName,
+            tracks:
+              props.tracks.map((item: any) => ({
+                ...item,
+                waitToUpdate: true,
+              })) || ([] as ITrackModel[]),
+            viewRegion: viewRegion as GenomeCoordinate,
+            userViewRegion: viewRegion as GenomeCoordinate,
+          }),
+        );
+      }
+    }
+  }, [props.genomeName]);
+
+  useEffect(() => {
+    if (
+      sessionId &&
+      props.viewRegion &&
+      isPackageMode &&
+      !initialState.current
+    ) {
+      let viewRegion: any = props.viewRegion;
+
+      if (
+        props.viewRegion &&
+        typeof props.viewRegion === "object" &&
+        !Array.isArray(props.viewRegion)
+      ) {
+        if (props.viewRegion["genomeCoordinate"]) {
+          viewRegion = viewRegion["genomeCoordinate"];
+        }
+      }
+
+      if (currentSession && viewRegion) {
+        dispatch(
+          updateCurrentSession({
+            viewRegion: viewRegion,
+            userViewRegion: viewRegion,
+          }),
+        );
+      }
+    }
+  }, [props.viewRegion]);
+
+  useEffect(() => {
+    if (sessionId && props.tracks && isPackageMode && !initialState.current) {
+      if (currentSession) {
+        dispatch(
+          updateCurrentSession({
+            tracks: props?.tracks ? props.tracks : [],
+          }),
+        );
+      }
+    }
+  }, [props.tracks]);
+
+  return (
+    <EscapeHandlerContext.Provider value={escapeHandlerRef}>
+      <PortalContext.Provider value={portalContainer}>
+        <div
+          className={`h-screen flex flex-col ${darkTheme ? "dark" : ""}`}
+          data-theme={darkTheme ? "dark" : "light"}
+          style={{ position: "relative", overflowX: "hidden" }}
+        >
+          {props.showDisclosure === false ? "" : <GoogleAnalytics />}
+          <div className="flex flex-col h-full text-primary dark:text-white bg-secondary dark:bg-dark-secondary ">
+            {showNavBar === false ? (
+              ""
+            ) : (
+              <div ref={navBarRef}>
+                <NavBar
+                  leftPanelOpen={leftPanelOpen}
+                  setLeftPanelOpen={setLeftPanelOpen}
+                  sessionId={sessionId}
+                  sessions={sessions}
+                  currentSession={currentSession}
+                  isPackageMode={!!isPackageMode}
+                />
+              </div>
+            )}
+            <AnimatePresence>
+              {leftPanelOpen ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute right-0 h-full z-60"
+                  style={{ top: navBarHeight }}
+                >
+                  <ResizablePanel
+                    navigationPath={[]}
+                    initialWidth={window.innerWidth * 0.4}
+                    initialHeight={window.innerHeight - 50}
+                    onClose={() => setLeftPanelOpen(false)}
+                    header={false}
+                  >
+                    <SessionList
+                      onSessionClick={(s) => {
+                        dispatch(setCurrentSession(s.id));
+                        setLeftPanelOpen(false);
+                      }}
+                      showImportSessionButton
+                      onRequestClose={() => setLeftPanelOpen(false)}
+                    />
+                  </ResizablePanel>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            <div>
+              {/* MARK: - Main Content */}
+
+              <div className="flex flex-1 h-full relative">
+                {/* MARK: - Genome View */}
+                <div
+                  className="flex-1 overflow-y-auto relative bg-white dark:bg-dark-background"
+                  style={{
+                    zIndex: 5,
+                  }}
+                >
+                  {!sessionId && !emptyPropsPackageMode ? (
+                    <TabView<"picker" | "add" | "import">
+                      centerTabs
+                      selectedTab={genomePickerTab}
+                      onTabChange={(v) => dispatch(setGenomePickerTab(v))}
+                      tabs={[
+                        {
+                          label: "CHOOSE A GENOME",
+                          value: "picker",
+                          component: <GenomePicker variant="root" />,
+                        },
+                        {
+                          label: "ADD CUSTOM GENOME",
+                          value: "add",
+                          component: <AddCustomGenome />,
+                        },
+                        {
+                          label: "LOAD A SESSION",
+                          value: "import",
+                          component: <ImportSession />,
+                        },
+                      ]}
+                    />
+                  ) : !sessionId && emptyPropsPackageMode ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        height: "200px",
+                        fontSize: "1.2em",
+                      }}
+                    >
+                      <span
+                        role="img"
+                        aria-label="cat"
+                        style={{ fontSize: "2em", marginBottom: "8px" }}
+                      >
+                        🐱
+                      </span>
+                      Need more data to visualize!
+                    </div>
+                  ) : (
+                    ""
+                  )}
+                  {sessionId && (
+                    <GenomeErrorBoundary onGoHome={handleGoHome}>
+                      <GenomeView />
+                      <div
+                        ref={handlePortalRef}
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          pointerEvents: "none",
+                          zIndex: 9000,
+                        }}
+                      />
+                    </GenomeErrorBoundary>
+                  )}
+                </div>
+
+                {/* <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                zIndex: 15,
+                pointerEvents: sessionPanelOpen ? "auto" : "none",
+                backgroundColor: "rgba(0,0,0,0.3)",
+                opacity: sessionPanelOpen ? 1 : 0,
+                transition: "opacity 0.3s ease",
+              }}
+              onClick={() => dispatch(setSessionPanelOpen(false))}
+            /> */}
+              </div>
+            </div>
+
+            {props.showDisclosure === false ? (
+              ""
+            ) : (
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "gray",
+                  backgroundColor: "inherit",
+                  padding: "36px",
+                }}
+              >
+                Copyright &copy; 2018-{year} Washington University in St. Louis.
+                All rights reserved.
+                <br /> Developed by the{" "}
+                <a
+                  href="http://wang.wustl.edu"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#007bff" }}
+                >
+                  Wang Lab
+                </a>
+                <br />{" "}
+                <a style={{ color: "#007bff" }} href="LICENSE.html">
+                  Terms and Conditions of Use
+                </a>
+              </div>
+            )}
+          </div>
+
+          <MouseFollowingTooltip />
+        </div>
+      </PortalContext.Provider>
+    </EscapeHandlerContext.Provider>
+  );
+}

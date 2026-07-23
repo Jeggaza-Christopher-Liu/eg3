@@ -1,0 +1,275 @@
+import { useAppDispatch, useAppSelector } from "../../../../../lib/redux/hooks";
+import {
+  selectCurrentSession,
+  updateCurrentSession,
+} from "../../../../../lib/redux/slices/browserSlice";
+import {
+  selectBundle,
+  selectCustomTracksPool,
+  updateBundle,
+} from "../../../../../lib/redux/slices/hubSlice";
+
+import {
+  selectIsNavigatorVisible,
+  selectTrackLegendWidth,
+} from "../../../../../lib/redux/slices/settingsSlice";
+
+import { addCustomGenomeRemote } from "../../../../../lib/redux/thunk/genome-hub";
+import useCurrentGenome from "../../../../../lib/hooks/useCurrentGenome";
+import {
+  DisplayedRegionModel,
+  GenomeCoordinate,
+  GenomeSerializer,
+  getGenomeConfig,
+  ITrackModel,
+  RegionSet,
+  TrackModel,
+} from "wuepgg3-track";
+
+import NavigationContext from "wuepgg3-track/src/models/NavigationContext";
+import { GenomeConfig } from "wuepgg3-track/src/models/genomes/GenomeConfig";
+import TabSessionUI from "./TabSessionUI";
+import { GenomeHubManager } from "wuepgg3-track";
+import useExpandedNavigationTab from "@/lib/hooks/useExpandedNavigationTab";
+
+export interface BundleProps {
+  bundleId: string | null;
+  customTracksPool: any[]; // use appropriate types if you know specifics, or use unknown[] for any type
+  darkTheme: boolean;
+  genomeName: string;
+  highlights: Array<any>;
+  isShowingNavigator: boolean;
+  layout: any;
+  metadataTerms: any[]; // use appropriate types if you know specifics, or use unknown[] for any type
+  regionSetView: any | null; // use appropriate type if you know it
+  regionSets: any[]; // use appropriate types if you know specifics, or use unknown[] for any type
+  viewRegion: GenomeCoordinate | null;
+  trackLegendWidth: number;
+  tracks: Array<TrackModel> | Array<ITrackModel>;
+  chromosomes: Array<any> | null;
+  customGenome: any | null;
+  genomeId: string | null;
+  viewInterval: { start: number; end: number } | null;
+  title?: string;
+}
+
+const Session: React.FC<{ tab?: boolean }> = ({ tab }) => {
+  if (tab) {
+    useExpandedNavigationTab();
+  }
+
+  const dispatch = useAppDispatch();
+
+  const customTracksPool = useAppSelector(selectCustomTracksPool);
+  const currentSession = useAppSelector(selectCurrentSession);
+  const bundle = useAppSelector(selectBundle);
+  const isNavigatorVisible = useAppSelector(selectIsNavigatorVisible);
+  const _genomeConfig = useCurrentGenome();
+  const legendWidth = useAppSelector(selectTrackLegendWidth);
+  // Early return if required data is not available
+  if (!currentSession || !_genomeConfig) {
+    return null;
+  }
+
+  let curUserState: BundleProps | undefined = undefined;
+
+  if (
+    currentSession &&
+    _genomeConfig &&
+    bundle &&
+    (currentSession.genomeId === _genomeConfig.id ||
+      currentSession.genomeId === _genomeConfig.name)
+  ) {
+    const highlights = currentSession.highlights;
+    const isShowingNavigator = isNavigatorVisible;
+    const regionSets = currentSession.regionSets;
+    const tracks = currentSession.tracks;
+    const selectedRegionSet = currentSession?.selectedRegionSet;
+    const userViewRegion = currentSession?.userViewRegion;
+
+    const genomeConfig = GenomeSerializer.deserialize(_genomeConfig);
+    const navContext = genomeConfig.navContext as NavigationContext;
+    let setNavContext;
+    if (selectedRegionSet) {
+      if (typeof selectedRegionSet === "object") {
+        const newRegionSet = RegionSet.deserialize(selectedRegionSet);
+        setNavContext = newRegionSet.makeNavContext();
+      } else {
+        setNavContext = selectedRegionSet.makeNavContext();
+      }
+    }
+
+    const curViewInterval: any = setNavContext
+      ? userViewRegion
+        ? setNavContext.parse(userViewRegion)
+        : setNavContext.parse(genomeConfig.defaultRegion)
+      : userViewRegion
+        ? navContext.parse(userViewRegion)
+        : navContext.parse(genomeConfig.defaultRegion);
+
+    curUserState = {
+      bundleId: bundle.bundleId,
+
+      customTracksPool,
+      customGenome: currentSession.customGenome,
+      darkTheme: false,
+      genomeName: _genomeConfig.name
+        ? _genomeConfig.name
+        : currentSession.genomeId,
+      genomeId: currentSession.genomeId,
+      highlights,
+      isShowingNavigator: isShowingNavigator,
+      layout: {},
+      chromosomes: currentSession.customGenome
+        ? _genomeConfig.chromosomes
+        : null,
+      metadataTerms: [],
+      regionSetView: selectedRegionSet,
+      regionSets,
+      trackLegendWidth: legendWidth,
+      tracks,
+      viewRegion: userViewRegion ? userViewRegion : currentSession.viewRegion,
+      viewInterval: curViewInterval,
+      title: currentSession?.title ? currentSession.title : "",
+    };
+  }
+  //provide data to genomeTracks to new current bundle session
+  function onRestoreSession(sessionBundle: any) {
+    let newGenomeConfig: GenomeConfig | null = null;
+    let coordinate: GenomeCoordinate | null = null;
+
+    if (
+      !GenomeHubManager.getInstance().getGenomeFromCache(
+        sessionBundle.genomeId,
+      ) &&
+      sessionBundle.chromosomes &&
+      sessionBundle.chromosomes.length > 0
+    ) {
+      let defaultRegion;
+      if (sessionBundle.viewRegion !== undefined) {
+        defaultRegion = sessionBundle.viewRegion;
+      }
+      const _newGenomeConfig = {
+        id: sessionBundle.genomeId,
+        name: sessionBundle.genomeId,
+        chromosomes: sessionBundle.chromosomes,
+        defaultTracks: sessionBundle.tracks.map((item: any) => ({
+          ...item,
+          waitToUpdate: true,
+        })),
+        defaultRegion,
+      };
+
+      dispatch(addCustomGenomeRemote(_newGenomeConfig));
+      newGenomeConfig = GenomeSerializer.deserialize(_newGenomeConfig);
+    } else if (
+      GenomeHubManager.getInstance().getGenomeFromCache(sessionBundle.genomeId)
+    ) {
+      const _newGenomeConfig =
+        GenomeHubManager.getInstance().getGenomeFromCache(
+          sessionBundle.genomeId,
+        );
+      if (_newGenomeConfig)
+        newGenomeConfig = GenomeSerializer.deserialize(_newGenomeConfig);
+    } else if (getGenomeConfig(sessionBundle.genomeId)) {
+      newGenomeConfig = getGenomeConfig(sessionBundle.genomeId);
+    } else {
+      const cachedGenome = GenomeHubManager.getInstance().getGenomeFromCache(
+        sessionBundle.genomeId,
+      );
+      if (cachedGenome) {
+        newGenomeConfig = GenomeSerializer.deserialize(cachedGenome);
+      } else if (
+        sessionBundle.viewRegion &&
+        typeof sessionBundle.viewRegion === "object"
+      ) {
+        newGenomeConfig = getGenomeConfig(
+          sessionBundle.viewRegion._navContext._name,
+        );
+      }
+    }
+    if (
+      newGenomeConfig &&
+      sessionBundle.viewRegion &&
+      typeof sessionBundle.viewRegion === "object"
+    ) {
+      coordinate = new DisplayedRegionModel(
+        newGenomeConfig?.navContext,
+        sessionBundle.viewRegion._startBase,
+        sessionBundle.viewRegion._endBase,
+      ).currentRegionAsString() as GenomeCoordinate | null;
+    } else if (newGenomeConfig && sessionBundle.viewRegion !== undefined) {
+      coordinate = sessionBundle.viewRegion;
+    } else if (newGenomeConfig && sessionBundle.viewInterval) {
+      coordinate = new DisplayedRegionModel(
+        newGenomeConfig?.navContext,
+        sessionBundle.viewInterval.start,
+        sessionBundle.viewInterval.end,
+      ).currentRegionAsString() as GenomeCoordinate | null;
+    }
+
+    const session = {
+      genomeId: newGenomeConfig
+        ? newGenomeConfig?.genome.getName()
+        : sessionBundle.genomeId
+          ? sessionBundle.genomeId
+          : null,
+      customGenome: sessionBundle.customGenome,
+      chromosomes: sessionBundle.chromosomes ? sessionBundle.chromosomes : null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      title: sessionBundle.title ? sessionBundle.title : "",
+      viewRegion: coordinate,
+      userViewRegion: coordinate,
+      tracks: sessionBundle.tracks.map((item: any) => ({
+        ...item,
+        waitToUpdate: true,
+      })),
+      highlights: sessionBundle.highlights ?? [],
+      metadataTerms: sessionBundle.metadataTerms ?? [],
+      selectedRegionSet: sessionBundle.regionSetView ?? null,
+      regionSets: sessionBundle.regionSets ?? [],
+    };
+
+    dispatch(updateCurrentSession(session));
+  }
+
+  //set the bundleid for this session to the retreive id and bundle to new bundle
+  function onRetrieveBundle(newBundle: any) {
+    if (newBundle && newBundle.bundleId) {
+      dispatch(updateBundle(newBundle));
+      if (newBundle.bundleId !== currentSession?.bundleId) {
+        dispatch(
+          updateCurrentSession({
+            bundleId: newBundle.bundleId,
+          }),
+        );
+      }
+    }
+  }
+
+  //add or delete session from bundle
+  function onUpdateBundle(bundle: any) {
+    let title = "";
+    if (
+      bundle.sessionsInBundle &&
+      bundle.sessionsInBundle[`${bundle.currentId}`]
+    ) {
+      title = bundle.sessionsInBundle[`${bundle.currentId}`].label;
+    }
+    dispatch(updateBundle(bundle));
+    dispatch(updateCurrentSession({ bundleId: bundle.bundleId, title }));
+  }
+  return (
+    <TabSessionUI
+      onRestoreSession={onRestoreSession}
+      onRetrieveBundle={onRetrieveBundle}
+      updateBundle={onUpdateBundle}
+      bundleId={bundle.bundleId ? bundle.bundleId : ""}
+      curBundle={bundle}
+      state={curUserState}
+    />
+  );
+};
+
+export default Session;

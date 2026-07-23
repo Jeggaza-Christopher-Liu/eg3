@@ -1,0 +1,276 @@
+import React, { useState, useEffect, useContext } from "react";
+import { createPortal } from "react-dom";
+import { PortalContext } from "wuepgg3-track"
+import ResizablePanel from "../../ui/panel/ResizablePanel";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { updateCurrentSession } from "../../../lib/redux/slices/browserSlice";
+import { useAppDispatch } from "../../../lib/redux/hooks";
+import { ITrackModel } from "wuepgg3-track";
+
+interface ReorderManyProps {
+  tracks: ITrackModel[];
+  windowWidth: number;
+  handleToolClick: (tool: any) => void;
+  anchorEl?: React.RefObject<HTMLElement | null>;
+}
+
+// Sortable Item Component using @dnd-kit
+interface SortableItemProps {
+  id: string;
+  track: ITrackModel;
+  index: number;
+}
+
+const SortableItem: React.FC<SortableItemProps> = ({ id, track, index }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    backgroundColor: "#e5e5e5",
+    cursor: "move",
+    opacity: isDragging ? 0.5 : 1,
+    padding: "0px 4px",
+    border: "1px solid #ccc",
+    borderRadius: "1px",
+    display: "flex",
+    alignItems: "flex-start",
+    fontSize: "16px",
+  };
+
+  const textStyle: React.CSSProperties = track.options?.color
+    ? { color: track.options.color }
+    : {};
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <span style={{ ...textStyle, marginRight: "8px" }}>
+        {`${index + 1}.`}
+      </span>
+      <span style={textStyle}>
+        {track.options && track.options.label
+          ? `${track.options.label}`
+          : "Untitled"}
+        {track.type && ` (${track.type})`}
+      </span>
+    </div>
+  );
+};
+
+// Custom Slider Component
+interface CustomSliderProps {
+  value: number;
+  onChange: (value: number) => void;
+  min: number;
+  max: number;
+  windowWidth: number;
+}
+
+const CustomSlider: React.FC<CustomSliderProps> = ({
+  value,
+  onChange,
+  min,
+  max,
+  windowWidth,
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const roundedValue = Math.round(parseFloat(e.target.value)); // Ensure the value is an integer
+    onChange(roundedValue);
+  };
+
+  return (
+    <div
+      style={{
+        width: `${windowWidth / 2}px`,
+        marginTop: "20px",
+        marginBottom: "20px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: "8px",
+        }}
+      >
+        <span>{min}</span>
+        <span>Columns: {value}</span>
+        <span>{max}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={handleChange}
+        style={{
+          width: "100%",
+          height: "8px",
+          borderRadius: "5px",
+          background: "#ddd",
+          outline: "none",
+        }}
+      />
+    </div>
+  );
+};
+
+// Grid Container Component
+interface GridProps {
+  items: ITrackModel[];
+  colNum: number;
+}
+
+const Grid: React.FC<GridProps> = ({ items, colNum }) => {
+  const gridStyles: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: `repeat(${colNum}, 1fr)`,
+    gap: "4px",
+    padding: "5px",
+  };
+
+  return (
+    <div style={gridStyles}>
+      {items.map((track, index) => (
+        <SortableItem
+          key={
+            track.id || `track-${track.type}-${track.options?.label || index}`
+          }
+          id={`item-${index}`}
+          track={track}
+          index={index}
+        />
+      ))}
+    </div>
+  );
+};
+
+const ReorderMany: React.FC<ReorderManyProps> = ({
+  tracks,
+  handleToolClick,
+  windowWidth,
+  anchorEl,
+}) => {
+  const dispatch = useAppDispatch();
+  const portalTarget = useContext(PortalContext);
+  const [items, setItems] = useState<ITrackModel[]>([]);
+  const [columnCount, setColumnCount] = useState<number>(1);
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  useEffect(() => {
+    setItems([...tracks]);
+  }, [tracks]);
+
+  const handleCloseModal = () => {
+    handleToolClick(null);
+  };
+
+  const anchorRect = anchorEl?.current?.getBoundingClientRect();
+  const panelTop = anchorRect ? Math.round(anchorRect.bottom) + 8 : 90;
+  const panelLeft = anchorRect ? Math.round(anchorRect.left) : 100;
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex(
+        (_, index) => `item-${index}` === active.id
+      );
+      const newIndex = items.findIndex(
+        (_, index) => `item-${index}` === over.id
+      );
+
+      setItems((items) => arrayMove(items, oldIndex, newIndex));
+    }
+  };
+
+  const handleColumnChange = (value: number) => {
+    setColumnCount(value);
+  };
+
+  return createPortal(
+    <div style={{ position: "fixed", top: panelTop, left: panelLeft, zIndex: 1000 }}>
+      <ResizablePanel
+        title="Reorder Tracks"
+        initialWidth={600}
+        initialHeight={500}
+        onClose={handleCloseModal}
+        navigationPath={[]}
+        header
+        excludeRefs={anchorEl ? [anchorEl] : []}
+      >
+        <div className="p-4">
+          <div
+            className="flex items-center justify-between mb-3"
+            style={{ fontSize: "16px" }}
+          >
+            <h5 className="font-semibold text-gray-800">
+              Drag and drop to re-order tracks, then press Apply.
+            </h5>
+            <div className="flex gap-4">
+              <button
+                onClick={() =>
+                  dispatch(updateCurrentSession({ tracks: items }))
+                }
+                className="px-3 py-1 text-sm border-1 border-blue-500 text-blue-500 bg-transparent rounded hover:bg-blue-50 transition-colors"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+
+          <CustomSlider
+            value={columnCount}
+            onChange={handleColumnChange}
+            min={1}
+            max={20}
+            windowWidth={windowWidth}
+          />
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={items.map((_, index) => `item-${index}`)}
+              strategy={rectSortingStrategy}
+            >
+              <Grid items={items} colNum={columnCount} />
+            </SortableContext>
+          </DndContext>
+        </div>
+      </ResizablePanel>
+    </div>,
+    portalTarget ?? document.body
+  );
+};
+
+export default ReorderMany;

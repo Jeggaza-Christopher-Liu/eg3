@@ -1,0 +1,50 @@
+import {
+  createEntityAdapter,
+  createSlice,
+  PayloadAction,
+} from "@reduxjs/toolkit";
+import { IGenome } from "wuepgg3-track";
+import { RootState } from "../createStore";
+
+const genomeHubAdapter = createEntityAdapter<IGenome>({
+  sortComparer: (a, b) => a.name.localeCompare(b.name),
+});
+
+export type AsyncStatus = "idle" | "loading" | "success" | "failed";
+
+export const genomeHubSlice = createSlice({
+  name: "genomeHub",
+  initialState: {
+    customGenomes: genomeHubAdapter.getInitialState(),
+    customGenomeLoadStatus: "idle" as AsyncStatus,
+  },
+  reducers: {
+    setCustomGenomes: (state, action: PayloadAction<IGenome[]>) => {
+      // Add customGenome: true to each genome before storing
+      const genomesWithCustomFlag = action.payload.map((genome) => ({
+        ...genome,
+        customGenome: true,
+      }));
+      genomeHubAdapter.setAll(state.customGenomes, genomesWithCustomFlag);
+    },
+    setCustomGenomesLoadStatus: (state, action: PayloadAction<AsyncStatus>) => {
+      state.customGenomeLoadStatus = action.payload;
+    },
+  },
+});
+export const { setCustomGenomes, setCustomGenomesLoadStatus } =
+  genomeHubSlice.actions;
+
+const genomeHubSelectors = genomeHubAdapter.getSelectors(
+  (state: RootState) => state.genomeHub.customGenomes
+);
+
+export const selectCustomGenomes = (state: RootState) =>
+  genomeHubSelectors.selectAll(state);
+export const selectCustomGenomeById = (state: RootState, id: string) =>
+  genomeHubSelectors.selectById(state, id);
+
+export const selectCustomGenomesLoadStatus = (state: RootState) =>
+  state.genomeHub.customGenomeLoadStatus;
+
+export default genomeHubSlice.reducer;
