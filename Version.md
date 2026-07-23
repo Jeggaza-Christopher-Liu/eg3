@@ -1,0 +1,359 @@
+# Version history
+
+## 61.9.5
+
+## 61.9.1
+
+## 61.9.0
+
+## 61.2.0
+
+- fixed geneplot and scatterplot fetch error
+- fixed sesssion load from home screen, when sessionId is invalid
+- added more workers, delete delay of startTransition
+
+## 61.1.1
+
+- fixed home screen session load, bundleId is checked first before loading session so user can choose
+
+## 61.1.0
+
+- fixed bug where pdf screenshot doesn't show tracklegend
+- reverted hic fetch changes and fixed 403 error bug
+
+## 61.0.92
+
+- pdf screenshots are now editable
+
+## 61.0.6
+
+- fixed hic fetch error
+
+## 61.0.5
+
+- reworked fetch function, queue individual track, and return when finish
+- fixed bug with initial load when there are more than one group
+- change local cache for data
+
+## 61.0.3
+
+- fixed bigbed, bed, bedcolor configOptions
+- fixed g3d tracks, sizing
+- fixed g3d adding regionset
+- fixed meta term values
+- fixed methlc legend height bug
+- added download pdf to screenshot
+
+## 61.0.0
+
+- added new feature, collections
+- reworked custom genome
+- custom and default genome can be added to create a new collection
+- fixed highlight flicker when updating region data
+- schema rework for custom genome, and session
+- added chrom alias check to fetching
+- screenshot postioning fix, for genomealign and its highlight
+- added bigbedColor track
+- added new default collection to home
+- refactor default genomes
+
+## 60.0.8
+
+- fixed genomealign x windowView positioning after loading for fine and rough mode
+- fixed highlight position for fine mode and to account for gaps.
+- fixed vcf fetching too much data
+- added visual for contents that are too small
+- session now default to home screen when tab is closed, previous can still be loaded
+- fixed genomealign parsing when remote session
+- reworked aggregate for viewWindow grouping. group will adjust on new group track add and doesn't recalculate every worker finish
+- home css adjustment to look in sizing
+
+## 60.0.6
+
+- refactor full svg, trackmanager init
+- fix bed featuredetail,
+- fixed matplot for bedgraph
+- display only negative range when data has negative data on auto for numerical tracks
+- position for name of genes shows in viewWindow
+
+## 60.0.5
+
+- added select/deselect all tracks checkbox
+- fixed categorical track clicking on feature cause a crash
+
+## 60.0.4
+
+- fixed categorical track config height
+- fixed ruler window view position in screenshot and svg download
+- fixed screenshot not displaying when there's a track with error
+
+## 60.0.3
+
+- fixed grouping
+- fixed sessions upload for genomealign
+- refactor trackmanager global config
+- refactor aggregation code
+- fixed grouping
+- allow redux state persist for package version
+
+## 60.0.1
+
+- fixed longrange and hic
+- fixed parse strand bug for + and -
+- UI sizing adjustment for new resizeable/positional tabs
+- reworked ui for regionset, geneplot, scatterplot
+- reworked ui for all hubs tabs
+- added darkmode to new tabs
+
+## 60.0.0
+
+- reduced memory usage and increase fps
+- improve performance when graphic acceleration is turned off
+- new tab UI for navbar and tools, allow resizing and changing position
+- new designed for navbar, toolbar, and home
+- reworked home sesssion ui
+- fixed region parsing issue, for regionset, sessionfiles, and remote session
+- added back regionset divider
+- session works with regionset
+- sessions backward compatible with eg2
+- implement check for negative only, positive only , or both display for numerical tracks
+  to adjust track display
+- tool structure rework, behaves like eg2
+
+## 59.4.1
+
+- when zoomed in, while in modbed summary mode, rect now has same width as base instead of one pixel line
+
+## 59.4.0
+
+- fixed bug where you can't add tracks when there are no tracks
+- added genome
+
+## 59.3.1
+
+- Added summary and detail displayMode to modbed
+
+## 59.3.0
+
+- Allow consuming app, to obtain session data when used as a package
+
+## 59.2.5
+
+- improved initial load
+- fixed bug causing slow down when viewing vcf tracks
+- added export function, for users using package to obtain information about the trackstate
+
+## 59.2.4
+
+- fixed performance issue when dragging track due to translateX
+- fixed performance issue when updating pointer position on track
+
+## 59.2.3
+
+- added height and width property to package, user can change the size of container holding tracks
+
+## 59.2.2
+
+- fixed config menu position in package
+- fixed bin and normalize options for hic track
+
+## 59.2.1
+
+- recreated ReactModal and removed dependency on package
+- recreated trackfacet and table
+- fixed zIndex issue in package version where modal components behind other components
+- fixed trackConfig positioning issue in package
+
+## 59.1.1
+
+- fixed vcf not updating when changing zooming and viewRegion
+- fixed screenshot causing crash when dragging track after opening and closing screenshot menu
+- fixed dbedgraph not displaying
+- fixed css for some track during screenshot view
+- change browser back to save state after refresh
+- refactor tracklegend
+- mute some redux error
+
+## 59.1.0
+
+- added config options to change tracklegend font color
+- fixed toolbar issue where click might not work
+- added more conditions to prevent tracks from redrawing
+- fixed height issue with categorical tracks
+- fixed vcf zoom causing crash
+- query genome follows genomealign in rough mode
+- outsideclicks now unselects and close config menu
+- added query genome Annotation tracks selection when user add genomealign
+- fixed crash when user move tracks when screenshot is open
+- unselect Drag in toolbar will stop the track from moving
+- fixed bigwig, numerical track not displaying the right density, because of computation
+- reorganzing workers, and refactor code by moving them into one centralize location
+- bugs fixs with, highlight menu, hubs
+- implement old genome align rough hover css
+
+## 59.0.0
+
+- fixed rough mode genome alignment
+- fixed sparse numerical display, now showing full view
+- fixed feature placer, now correctly converting from genomic loci to xspan
+- added better error checking for fetch
+- rechecked all tracks for bugs with changes to feature placer
+- readjusted color config for genomealign rough mode
+- optimized and refactor trackmanager
+
+## 58.0.5
+
+- fixed critical bug where genome that querys with genomealign fetches too much data, increasing performance
+- implemented white space checking for searching genome coordinates
+- fixed long range text track not parsing file correctly
+- fixed genome align rough mode color config
+
+## 58.0.2
+
+- fixed groupscale not displaying because of new code rework
+
+## 58.0.1
+
+- fixed small issue with custom genome not properly displaying when given id and name property
+
+## 58.0.0
+
+- reduced memory usage by combining loops and removing repeating creation of array elements
+- implement workers into package version and refactor worker creation
+- fixed configmenu css positioning
+- fixed heatmap beam position
+- fixed url link bug when you can't make a url after clicking url link
+- implement full url for users that can't use tinyurl
+- fixed genome align for package
+- fixed clear all history bug and refactor history state
+- clear static numerical fetch instance raw data after fetch, reducing memory usage
+- implement persist state for package version, each new component keeps their previous state and load it on refresh
+- changed how numerical track are displayed when there are only negative or positive
+
+## 57.0.1
+
+- added more error checking for saving sessions
+- removed unused session tab
+- small changes to session picker css, clearer import and move icon to top
+
+## 57.0.0
+
+- Implemented a way for users to retry fetching a track if there is an error
+- Implemented History menu, allow user to change to past or future states
+- Implemented URL param for datahub
+- Implemented shortcut keys for tools
+- implemented auto detect if file is ensembl and displays them
+- Allow users to import session in Genome picker menu
+- Pressing Escape now allow users to exit out of sub menus
+- Redesign Sessions, history, toolbar and genome picker
+- refactor gene search
+- Reworked toolbar to fit screen when user zoom in and out
+- fixed memory deleting memory caching
+- fixed issues between sessions
+- fixed issues with custom genome saving them in session
+- increase overall stability and increase error checks
+
+## 56.0.8
+
+- fixed the css issue of tool bar
+
+## 56.0.7
+
+- fixed search bar css
+- fixed screenshot bug where track crashes
+- fixed bug when tabs open changing state cause crash
+- fixed bug when changing state to the latest do not update tracks
+
+## 56.0.6
+
+- fixed bug where track not showing when the user scroll to previous regions
+- updated bigwig fetch, @gmod/bbi to new version, fixed error with negative regions
+
+## 56.0.5
+
+- implemented longrange local text tracks
+- increase track draw speed, by using less useeffect
+- fixed error when user select IMAGECOUNT
+
+## 56.0.4
+
+- center toolbar
+- fixed initial slow loading by separating out flexlayout (found by wenjin)
+- increase reactivity when switching between pages
+- refactor state, userViewRegion, sizeChange, and viewRegion
+
+## 56.0.3
+
+- Fixed modbed crash when zooming in
+- implement ability for user to save chromosomes to app session for remotely loading custom genomes
+- moved Toolbar above tracks
+- fixed local upload bug, where changing configs will crash
+- implemented a more in depth parse for regionset and multi chromosome regions
+- refactor viewRegion and userViewRegion to only use genomeCoordinate
+
+## 56.0.2
+
+- Fixed app session, not loading previous after saving
+- implement ability for user to save chromosomes to app session for remotely loading custom genomes
+
+## 56.0.1
+
+- Fixed the screenshot bug
+- Fixed initial loading position
+
+## 56.0.0
+
+- implement multiple workers to fetch and process data, individual
+  tracks group will be immediately display without waiting for all tracks
+  to be finishes processing
+- track now support touch screen devices, allowing the user to move the tracks with touch controls
+- implement hover data for ruler
+- improved speed of loading tracks
+- fixed tooltip hover for metadata
+- fixed aggregateMethod config bug
+- fixed flexlayout height bug
+- implement indicator that shows number of items too small
+- refactor packages.json
+- refactor checking const objects
+
+## 55.2.0
+
+- added g3d UI and flexlayout component
+- remote track, indicator when a user submit a track
+- moved workers to genomeroot, decreasing init load times
+- fixed where configmenu appears, so it doesn't get cut off
+- refactor states in trackmanager
+- fixed bug where groupscale are not applying in screenshot
+
+## 55.1.0
+
+- Added loading indicator and track placeholder
+- Added fetch seq in the top menu tab
+- Implement apply matplot in right click menu
+- Implement bin and norm for hic track
+- Fixed track fetching the same regions when scrolling too fast or slow internet
+- Fixed session upload where tracks is updated before genomeconfig
+- Fixed regionSet bug
+- refactor fetchworker
+
+## 55.0.3
+
+- Reworked screenshots - using expanded view only and working with genomealign and interaction
+- Fixed highlight issue in screenshot, causing it to crash
+- Fixed highlight on tracks when resizing window
+- Stop the screenshot page from going blank from clicking download svg
+
+## 55.0.2
+
+- Refactor package.json
+- Reorganize files for modularization
+- Updated npm version
+
+## 55.0.1
+
+- Fixed a bug in screenshot
+- Fixed a session saving error
+
+## 55.0.0
+
+- This is the first version of the third generation of the WashU Epigenome Browser, code was rewritten based on Vite.js and React framework, this update is described at [the Browser 2025 NAR update paper](https://doi.org/10.1093/nar/gkaf387).

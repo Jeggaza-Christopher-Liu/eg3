@@ -1,0 +1,154 @@
+import React, { Children, useMemo } from "react";
+import OpenInterval from "../../../../models/OpenInterval";
+import Gene from "../../../../models/Gene";
+import GeneAnnotation, {
+  DEFAULT_OPTIONS,
+  GeneDisplayOptions,
+} from "./GeneAnnotation";
+import { TranslatableG } from "./TranslatableG";
+import BackgroundedText from "./BackgroundedText";
+
+interface GeneAnnotationScaffoldProps {
+  gene: Gene;
+  xSpan: OpenInterval;
+  viewWindow?: OpenInterval;
+  y?: number;
+  isMinimal?: boolean;
+  options?: {
+    color?: string;
+    backgroundColor?: string;
+    italicizeText?: boolean;
+    hideMinimalItems?: boolean;
+  };
+  children: React.ReactNode;
+  onClick(event: React.MouseEvent, gene: Gene): void;
+}
+
+const HEIGHT = 9;
+
+const GeneAnnotationScaffold: React.FC<GeneAnnotationScaffoldProps> = ({
+  gene,
+  xSpan,
+  viewWindow,
+  y,
+  isMinimal,
+  options,
+
+  onClick,
+  placedGroup,
+  configOptions,
+}) => {
+  const [xStart, xEnd] = xSpan;
+  const { color, backgroundColor, italicizeText } = getDrawColors(
+    gene,
+    options,
+  );
+
+  const coveringRect = (
+    <rect
+      // Box that covers the whole annotation to increase the click area
+      x={xStart}
+      y={0}
+      width={xSpan.getLength()}
+      height={HEIGHT}
+      fill={isMinimal ? color : backgroundColor}
+      opacity={isMinimal ? 1 : 0}
+    />
+  );
+
+  let labelX, textAnchor;
+  let labelHasBackground = false;
+
+  const estimatedLabelWidth = gene.getName().length * HEIGHT;
+  const isBlockedLeft = xStart - estimatedLabelWidth < viewWindow!.start;
+  const isBlockedRight = xEnd + estimatedLabelWidth > viewWindow!.end;
+
+  if (!isBlockedLeft) {
+    // Yay, we can put it on the left!
+    labelX = xStart - 4;
+    textAnchor = "end";
+  } else if (!isBlockedRight) {
+    // Yay, we can put it on the right!
+    labelX = xEnd + 4;
+    textAnchor = "start";
+  } else {
+    // Just put it directly on top of the annotation
+    labelX = viewWindow!.start + 4;
+    textAnchor = "start";
+    labelHasBackground = true; // Need to add background for contrast purposes
+  }
+
+  const label = (
+    <BackgroundedText
+      x={labelX}
+      y={0}
+      height={9}
+      fill={color}
+      dy="0.65em"
+      textAnchor={textAnchor}
+      backgroundColor={backgroundColor}
+      backgroundOpacity={labelHasBackground ? 0.65 : 0}
+      italicizeText={italicizeText}
+    >
+      {gene.getName()}
+    </BackgroundedText>
+  );
+
+  return (
+    <TranslatableG y={y} onClick={(event) => onClick(event, gene)}>
+      {useMemo(
+        () => (
+          <>
+            {isMinimal && options?.hideMinimalItems ? (
+              ""
+            ) : isMinimal ? (
+              <> {coveringRect} </>
+            ) : (
+              <>
+                <line
+                  x1={xStart}
+                  y1={HEIGHT / 2}
+                  x2={xEnd}
+                  y2={HEIGHT / 2}
+                  stroke={color}
+                  strokeWidth={1}
+                  strokeDasharray={4}
+                />
+                {placedGroup.placedFeatures.map(
+                  (placedGene: any, i: number) => (
+                    <GeneAnnotation
+                      key={i}
+                      placedGene={placedGene}
+                      y={y}
+                      options={configOptions}
+                    />
+                  ),
+                )}
+              </>
+            )}
+          </>
+        ),
+
+        [placedGroup],
+      )}
+      {!isMinimal ? label : ""}
+    </TranslatableG>
+  );
+};
+
+export default GeneAnnotationScaffold;
+
+export function getDrawColors(gene: Gene, options: GeneDisplayOptions = {}) {
+  const mergedOptions = {
+    ...DEFAULT_OPTIONS,
+    ...options,
+  };
+
+  return {
+    color:
+      mergedOptions.categoryColors[gene.transcriptionClass!] ||
+      mergedOptions.color,
+    backgroundColor: mergedOptions.backgroundColor,
+    italicizeText: mergedOptions.italicizeText,
+  };
+}

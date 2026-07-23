@@ -1,0 +1,41 @@
+.TrackContextMenu-body {
+  z-index: 1;
+  min-width: 250px;
+  max-width: 400px;
+  background-color: var(--bg-color);
+  border: 1px solid #b7b1f2;
+  border-radius: 0.25rem;
+  font-size: small;
+}
+
+.TrackContextMenu-item {
+  padding: 5px 3px;
+}
+
+.TrackContextMenu-item label {
+  cursor: pointer;
+}
+
+.TrackContextMenu-hoverable-item:hover {
+  background-color: #20a0ff;
+}
+
+.TrackContextMenu-hoverable-item-danger:hover {
+  background-color: pink;
+  cursor: pointer;
+}
+
+.TrackContextMenu-hoverable-item-warn:hover {
+  background-color: #f3ba12;
+  cursor: pointer;
+}
+
+.TrackContextMenu-URL {
+  font-style: italic;
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+.btn-tight {
+  padding: 0;
+}

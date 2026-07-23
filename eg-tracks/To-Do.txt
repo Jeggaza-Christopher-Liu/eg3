@@ -1,0 +1,354 @@
+6/24/2026
+package version footer hidden 
+update https://epgg.github.io/ docunmentation
+update eg3 readme 
+
+5/18/2026
+change examples and schema     (done)
+change prop names for custom genomes (done)
+change checks for customgenome to new props name  (done)
+change size of search and dropdown genomepicker  (done)
+have even layout size for the three tabs  (done)
+change size of load a session  (done)
+fix flicker of highlights when changing region (done)
+change button style of screenshot 
+add pdf download to screenshot
+add multi screenshot 
+add bedcolor 
+add rgbpeak 
+add new collection for shihua
+fix legend width change
+
+
+5/15/2026
+save collection selected to localstorage
+create customGenomes collection when a new genome is added/ check remote session, local session/ root session remote, local
+default genome drop down width and get longer if theres more 
+
+
+
+4/30/26
+check sort order 
+cancel large fetch when moving to new region
+fix mod and vcf height, and viewWindow
+
+
+
+4/09/26
+finish ADD ERROR CHECK TO FORMAT
+finsh LOAD FILE SESSION WITHOUT NEEDED BVUNDLE ID
+finsh check when loading a lot tracks
+finsh  check negative bigwig more. 
+finish remote hub add shwoOnLoad
+
+save remotely, working in new and old browser
+save local session file, upload working from native file and old browser session
+save session failing condition  to save 
+test error, by giving false geneArr/ (Error caught, maybe add error check for hover and )
+allow to choose sessions in home when loading
+custom genome working remotely 
+____________________________________________
+repeatmasker 2 fix
+custom genome, region sets
+add ensembl to the locals 
+test remote fetch more add back checks 
+
+
+4/02/2026
+(check more) fix error when remote local add track and wrong file for type
+(fnish) fix size
+(add a try to trackfactry) add another check when all data are null check track errors
+(finish) fix toolbar select drag null issue
+check sessions, custom genome, region sets
+check when loading a lot tracks
+check negative bigwig more. 
+
+
+
+
+
+
+
+To-Do, 6/15/2025
+1. remove extra setState for creating workers in the package version
+2. showGenome on 3d
+3. fix css
+4. show hidden genomes in trackfactory
+5. fix hover for metadata
+______________________
+11. implement g3d
+    - get g3d working (finish) _done
+    - implement old ui _working
+    - create model for react tab, in genomeroot, check for dupe, like in trackmanager (tracks)
+    - implment add and delete from tracks and update properly
+
+______________________
+
+finished
+1. fixed slow loading on initial by moving worker to genomeroot
+2. double render in queueTofetch because we update newDrawData twice on initial
+3. overall performance improvement by not having to recreate workers 
+4. finish npm package
+5. working tab ui react layers 
+6. fixed conditionally display in genomeroot
+7. fixed loading placeholder
+
+
+finished 
+1. browser package and track package working with react 18 and 19
+2. fixed two react version bug with packages and consuming app
+3. fixed nodepoly package
+4. implemented g3d ui 
+5. fixed flexlayout bugs, when tabs are opened
+6. added new system to manage track height so height changing works 
+    with flexlayout
+7. refactor const objects for package (need to implement in dev branch)\
+8. working multi worker fetch(need to test for bugs and implement in dev)
+
+8/07/2025
+1. fix hover for metadata
+2. show hidden genomes in trackfactory
+3. working multi worker fetch(need to test for bugs and implement in dev)
+4. refactor const objects for package (need to implement in dev branch), (finish dev, finish worker,multi)
+5. hover for ruler 
+6. implement changes for packages: flexlayout, multi worker, css, refactoring of state. 
+7. implement props for whole website genomehub of package.
+
+
+
+8/13/2025
+1. Need to fix when entering invalid genomealign tracks 
+
+
+8/14/2025
+STRESS TEST WORKER ALGO 
+--1. SCROLL FAST TO SEE IF EVERYThing is loading correctly  (done)
+--2. check scrolling fast to already fetched data (done)
+
+--3. genomealign error checking for invalid url. fetch etc
+
+--4. scroll fast and then add more tracks tthrough public, t
+hen scroll back if its fetching the new tracks only that are added 
+(done, fixed, when new workers after initial are added, it doesn't have an onmessage so we dont get back the fetch data)
+
+5. check local add 
+-- 6. check remote 
+-- 7. check annotation add, fixed genomealign add cause it doesn't have worker
+-- 8. check toolbar: zoom, regionselect, jump 
+-- 9. check undo redo 
+-- 10.check sessions 
+-- 11. check genomealign: already checked(added as default, remote, multiple genomealign, add new genomealign to a group)
+    : check deleting, resize, adding track following query genome, 
+-- 12. resize
+13. check more errors, and let the user which track has error
+-- 14. cryptoUUID not working on somebrowser 
+
+-- 15. fixed some bigwig bugs, found by jessica
+
+
+
+8/20/2025
+1. add better error checking
+-- 2. integrate changes to npm packages
+3. maybe change flexlayout to something else 
+4. add props to genomeHub package
+--5. add saving chromosome in sessions so custom genome can be rebuild 
+-- 6. fix datahub bug
+-- 7. history menu option
+--8. fix strictmode, cause ref data not getting deleted after component unmount
+--9. rework viewRegion and userViewRegion
+-- 10. create a contextCoord convert to genomicCoord
+-- 11. move toolbar to the top next to region controller
+
+12 create intiial windowWidth before genomeroot and resize from root to manager
+13 delte newdrawdata state in trackmanager
+14 move viewRegion and UserViewRegion to trackrepresent and create genomeConfig there. 
+15 in trackfactory instead of creating new track components, create one react track component and just change the data 
+    so its not recreated everytime theres newdata or new index 
+
+16. make each track component be able to react to state changes so its not recreated. 
+17. take out local tracks when refreshing
+18. create reorder many tab 
+19. change zoom icon to original 
+
+
+9/25/2025
+--1. rework tracks component to not create a new react component drawing new regionselect and instead just 
+    change and redraw based on new data
+
+2. fix genes search, probably need to rework servers
+
+--3. fix url param for datahub
+--4. check sessions in genome picker menu, (finish import) (check: upload for new data format and old session format
+, url params, etc)
+
+5. legend width setting
+6. check errors 
+7. NEW FEATURE: IMPLEMENT SEPARATE COLUMNS, where user can compare tracks etc. NEED NEW package not flexlayout
+
+--8. retryFetch track
+--9. instance fetch fix(bug was not using await in createcache)
+--10. reworked looking for dupe elements, checking while converting other elements/
+--11. screenshot fix for new algo dupe
+--12. tracklegend for error track
+--13. reworked tool bar 
+--14. toolbar css, search bar, reorder many, highlight
+--15. escape to close, toolbar and menu
+--16. history menu
+--17. rework metadata menu
+
+18. rework import in genome picker getMenuComponents
+19. rework trackregioncontroller
+20. check retry
+
+--21. FIXED clearing memory cache
+22 trackmanager line 1532
+
+
+checking-
+
+- Implemented a way for users to retry fetching a track if there is an error  (finish)
+- Implemented History menu, allow user to change to past or future states (finish)
+- Implemented URL param for datahub  (finish)
+- Implemented shortcut keys for tools (finish)
+- Allow users to import session in Genome picker menu  (finish)
+- Pressing Escape now allow users to exit out of sub menus (finish)
+- Reworked toolbar to fit screen when user zoom in and out (finish)
+- fixed memory deleting memory caching (finish)
+
+
+
+
+To: Do 10/15/2025
+
+- legendwidth option 
+- show toolbar, and metameta, trackregioncontroller for setting option
+- error checking 
+- new algo, store draw data not raw data, this reduces memory usage 
+- gene search speed fix 
+
+
+
+to do: 10/21/2025
+- update version document 
+- update readme docunmentation for eg3 
+- update readme for embeded 
+- update readme for package  on npm 
+- add legendwidth setting 
+- optimized a way to save draw data and find a way to process data and convert so it would take less space,
+     ie: stream local or remote data and actively convert then deleted
+    the chunk so it make space for incoming chunks 
+- add view columns for tracks and have multi tabs 
+- error checks 
+- update package again 
+- (maybe replace flexlayout)
+
+- fixed numerical when there are only negative values 
+- fixed not being able to delete every track and adding when tracks are empty
+- fixed configmenu position using react modal 
+- added indicators for unSelecting tracks to rootlayout
+- remove indicator when going to genomepicker
+
+
+
+11/10/2025
+- dupe refgenes for new recode 
+- check all track if working with new recode 
+- parsing interval
+- option to increase hic range 
+
+
+
+12/24/2025
+
+finished hic and bam working, and error for normal tracks 
+
+1. need to check if hic and bam is working with package (ITS WORKIGN)
+2. error for hic and bam, genomealign
+3. check boxplot, bigbed
+
+4. fix when queryGenome but no genomealign track with query  (working)
+5. outsideclick close tab
+6. tracklegend font color
+7. drag button stop drag 
+8. copy in toolbar
+9. tracklegendwidth
+
+
+
+error check List:
+
+genome align rough 
+ 1. check for coorrect amount of fetch and render   (finished)
+ 2. other track following it every region region (finished)
+ 3. add/delete  (finsihed) fixed parsing JSON5, annotation Track tab check if already in track using url, stop querygenome align from added ,can add other query annotation
+    (need to add for local, and remote)
+ 4. zoom/ change region (finished)
+ 5. with normal tracks  (finished)
+    6. finished genome align rough hover (kinda finish) hover line 
+
+ genome align fine 
+    1. changes properly between zooms (finished)
+    2. all tracks follows it  (finished)  fixed bug in queuefetch region, it doesn't use cache data
+    3. check for coorrect amount of fetch and render  (finished)
+
+
+trackConfigMenu
+
+1. positions (finshed) fixed positioning, using windowY scroll 
+2. changes track correctly 
+
+
+tracks to check:
+1. bigbed
+2. vcf   (finished) whening zooming
+3. categorical (finished)
+4. snp (need to have a diff error message)
+5.methylc
+6. dynseq
+7. bedgraph
+
+all Tracks that has redraw conditionals: 
+1. numerical
+2. vcf 
+3. interaction (might need to revisit)
+4. methylc
+5. dynseq
+6. bedgraph
+7. 
+
+
+
+    boxplot: string;
+    matplot: string;
+    longrange: string;
+    hic: string;
+
+
+trackResize
+    1. working for normal track (finished)
+    2. woorking for genomealign rough (finished) fixed by resetting complete and setting viewRegion for new computescale
+
+
+1/19/2026
+1. height, width prop
+2. custom genome for package, customGenome Prop as object or json
+3. isPackage in root, change, and what props are needed, and check what we have, and error display
+    if prop is not given, or add default props,
+4. error checked
+
+
+1/30/2026
+ 1. fix hic normal bins
+ 2. add height and width props to package
+ 3. fix config menu position in package
+ 4. 
+
+
+
+
+
+
+ 3/17 
+
+ fix serilize and deserilize for defaultRegion double check it in sessions, customGenome, genomePicker, useCurrentGenome

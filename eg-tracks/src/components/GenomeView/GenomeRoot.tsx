@@ -1,0 +1,336 @@
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import _ from "lodash";
+import { ITrackContainerState } from "../../types";
+import FlexLayout from "flexlayout-react";
+import ThreedmolContainer from "./TrackComponents/3dmol/three/ThreeG3dContainer";
+import { addTabSetToLayout, initialLayout } from "../../models/layoutUtils";
+import "./AppLayout.css";
+import { arraysHaveSameTrackModels } from "../../util";
+
+// import "./track.css";
+// import { chrType } from "../../localdata/genomename";
+// import { getGenomeConfig } from "../../models/genomes/allGenomes";
+
+import useResizeObserver from "./TrackComponents/commonComponents/Resize";
+import TrackManager from "./TrackManager";
+const MAX_WORKERS = 8;
+export const AWS_API = "https://lambda.epigenomegateway.org/v2";
+import "./track.css";
+import TrackModel from "../../models/TrackModel";
+import FetchDataWorker from "../../getRemoteData/createFetchWorker.ts?worker&inline";
+// @ts-ignore
+import FetchGenomeAlignWorker from "../../getRemoteData/createFetchGenomeAlignWorker.ts?worker&inline";
+// import GenomeViewerTest from "../testComp";
+// import GenomeViewerTest from "./testComp";
+
+const GenomeRoot: React.FC<ITrackContainerState> = memo(function GenomeRoot({
+  tracks,
+  genomeConfig,
+  highlights,
+  legendWidth,
+  showGenomeNav,
+  showToolBar,
+  onNewRegion,
+  onNewHighlight,
+  onTracksChange,
+  onNewRegionSelect,
+  onSetSelected,
+  currentState,
+  tool,
+  Toolbar,
+  viewRegion,
+  userViewRegion,
+  setScreenshotData,
+  isScreenShotOpen,
+  selectedRegionSet,
+  darkTheme,
+  width,
+  height,
+}) {
+  const [resizeRef, size] = useResizeObserver();
+
+  const infiniteScrollWorkers = useRef<{
+    worker: {
+      fetchWorker: Worker;
+      hasOnMessage: boolean;
+      processingCount: number;
+    }[];
+  }>({
+    worker: [],
+  });
+  const fetchGenomeAlignWorker = useRef<{
+    fetchWorker: Worker;
+    hasOnMessage: boolean;
+  } | null>(null);
+
+  const layout = useRef(_.cloneDeep(initialLayout));
+  const [model, setModel] = useState(FlexLayout.Model.fromJson(layout.current));
+
+  const [show3dGene, setShow3dGene] = useState();
+  //keep a ref of g3d track else completeTrackChange will not have the latest tracks data
+  const g3dTracks = useRef<Array<any>>([]);
+  const has3dTracks = useMemo(
+    () => tracks.some((track) => track.type === "g3d"),
+    [tracks],
+  );
+
+  // Initialize workers based on tracks when they change
+  useEffect(() => {
+    if (tracks.length > 0 && has3dTracks) {
+      const curG3dTracks = findAllG3dTabs(layout.current);
+      const newG3dTracks: Array<any> = tracks.filter(
+        (track) => track.type === "g3d",
+      );
+
+      if (!arraysHaveSameTrackModels(curG3dTracks, newG3dTracks)) {
+        layout.current = _.cloneDeep(initialLayout);
+        g3dTracks.current = newG3dTracks;
+        for (let track of newG3dTracks) {
+          const newLayout = {
+            type: "tabset",
+            weight: 100,
+            children: [
+              {
+                type: "tab",
+                name: track.getDisplayLabel(),
+                component: "g3d",
+
+                config: { trackModel: track, trackId: track.id },
+                enableClose: true,
+              },
+            ],
+          };
+          layout.current = addTabSetToLayout(newLayout, layout.current);
+        }
+
+        setModel(FlexLayout.Model.fromJson(layout.current));
+      }
+    }
+
+    genomeConfig.defaultTracks = tracks;
+  }, [tracks]);
+
+  function completeTracksChange(updateTracks: Array<TrackModel>) {
+    onTracksChange([...updateTracks, ...g3dTracks.current]);
+  }
+
+  function renderG3dTrackComponents(node) {
+    if (!userViewRegion) {
+      return null;
+    }
+    const config = node.getConfig();
+    const { x, y, width, height } = node.getRect();
+    const g3dtrack = TrackModel.deserialize(config.trackModel);
+    g3dtrack.id = config.trackId;
+    const origG3d = tracks.filter((tk) => tk.getId() === g3dtrack.id);
+    g3dtrack.fileObj = origG3d.length ? origG3d[0].fileObj : null;
+
+    node.setEventListener("close", () => {
+      onTracksChange(
+        tracks.filter((item, _index) => {
+          return item.id !== g3dtrack.id;
+        }),
+      );
+    });
+
+    return (
+      <ThreedmolContainer
+        key={g3dtrack.id}
+        tracks={tracks}
+        g3dtrack={g3dtrack}
+        viewRegion={userViewRegion}
+        width={width}
+        height={height}
+        x={x}
+        y={y}
+        genomeConfig={genomeConfig}
+        geneFor3d={show3dGene}
+        onSetSelected={onSetSelected}
+        onNewViewRegion={onNewRegionSelect}
+        selectedSet={selectedRegionSet ? selectedRegionSet : null}
+      />
+    );
+  }
+
+  // Optimized factory function with reduced overhead
+  const factory = React.useCallback(
+    (node) => {
+      const component = node.getComponent();
+
+      if (component === "Browser") {
+        return tracks ? (
+          <TrackManager
+            tracks={tracks}
+            legendWidth={legendWidth}
+            windowWidth={width ? width : size.width - legendWidth - 40}
+            userViewRegion={userViewRegion}
+            highlights={highlights}
+            genomeConfig={genomeConfig}
+            onNewRegion={onNewRegion}
+            onNewRegionSelect={onNewRegionSelect}
+            onNewHighlight={onNewHighlight}
+            onTracksChange={completeTracksChange}
+            tool={tool}
+            Toolbar={Toolbar}
+            viewRegion={viewRegion}
+            showGenomeNav={showGenomeNav}
+            showToolBar={showToolBar}
+            isThereG3dTrack={false}
+            setScreenshotData={setScreenshotData}
+            isScreenShotOpen={isScreenShotOpen}
+            selectedRegionSet={selectedRegionSet}
+            setShow3dGene={setShow3dGene}
+            infiniteScrollWorkers={infiniteScrollWorkers}
+            fetchGenomeAlignWorker={fetchGenomeAlignWorker}
+            currentState={currentState}
+            darkTheme={darkTheme}
+          />
+        ) : (
+          ""
+        );
+      } else {
+        return renderG3dTrackComponents(node);
+      }
+    },
+    [
+      tracks,
+      size.width,
+      legendWidth,
+      userViewRegion,
+      highlights,
+      genomeConfig,
+      onNewRegion,
+      onNewRegionSelect,
+      onNewHighlight,
+      tool,
+      viewRegion,
+      showGenomeNav,
+      showToolBar,
+      selectedRegionSet,
+    ],
+  );
+
+  function findAllG3dTabs(layout: any) {
+    const result: any[] = [];
+
+    function recurse(node: any) {
+      if (!node) return;
+      if (
+        node.type === "tab" &&
+        node.config &&
+        node.config.trackModel &&
+        node.config.trackModel.type === "g3d"
+      ) {
+        result.push(node.config.trackModel);
+      }
+      if (Array.isArray(node.children)) {
+        node.children.forEach(recurse);
+      }
+    }
+
+    recurse(layout.layout); // Start from the root layout node
+    return result;
+  }
+
+  // Eagerly init workers synchronously so the render condition sees them on the first render.
+  // The useEffect below still handles adding workers when tracks grow beyond MAX_WORKERS.
+  if (
+    tracks.some((t) => t.type === "genomealign") &&
+    !fetchGenomeAlignWorker.current
+  ) {
+    fetchGenomeAlignWorker.current = {
+      fetchWorker: new FetchGenomeAlignWorker(),
+      hasOnMessage: false,
+    };
+  }
+
+  if (tracks.length > 0 && infiniteScrollWorkers.current.worker.length === 0) {
+    const normalCount = Math.min(tracks.length, MAX_WORKERS);
+    for (let i = 0; i < normalCount; i++) {
+      infiniteScrollWorkers.current.worker.push({
+        fetchWorker: new FetchDataWorker(),
+        hasOnMessage: false,
+        processingCount: 0,
+      });
+    }
+  }
+
+  useEffect(() => {
+    genomeConfig.defaultTracks = tracks;
+
+    return () => {
+      // Terminate all infinite scroll workers
+
+      if (infiniteScrollWorkers.current) {
+        infiniteScrollWorkers.current.worker.forEach((workerObj) => {
+          workerObj.fetchWorker.terminate();
+        });
+
+        infiniteScrollWorkers.current = {
+          worker: [],
+        };
+      }
+
+      // Terminate genome align worker
+      if (fetchGenomeAlignWorker.current) {
+        fetchGenomeAlignWorker.current.fetchWorker.terminate();
+      }
+      fetchGenomeAlignWorker.current = null;
+
+      // Clear all other refs
+
+      layout.current = _.cloneDeep(initialLayout);
+      g3dTracks.current = [];
+
+      // Reset state to initial values
+
+      setModel(FlexLayout.Model.fromJson(_.cloneDeep(initialLayout)));
+      setShow3dGene(undefined);
+    };
+  }, []);
+
+  return (
+    <div ref={resizeRef as React.RefObject<HTMLDivElement>}>
+      {!has3dTracks && size.width > 0 ? (
+        <div style={{ ...(height && { height }), overflowX: "hidden" }}>
+          <TrackManager
+            tracks={tracks}
+            legendWidth={legendWidth}
+            windowWidth={size.width - legendWidth - 36}
+            // subtract legend width so it matches the width with eg2,
+            // 15 + 15 paddig left right, to match old browser, and + 15 for scroll bar
+            userViewRegion={userViewRegion}
+            highlights={highlights}
+            genomeConfig={genomeConfig}
+            onNewRegion={onNewRegion}
+            onNewRegionSelect={onNewRegionSelect}
+            onNewHighlight={onNewHighlight}
+            onTracksChange={completeTracksChange}
+            tool={tool}
+            Toolbar={Toolbar}
+            viewRegion={viewRegion}
+            showGenomeNav={showGenomeNav}
+            showToolBar={showToolBar}
+            isThereG3dTrack={false}
+            setScreenshotData={setScreenshotData}
+            isScreenShotOpen={isScreenShotOpen}
+            selectedRegionSet={selectedRegionSet}
+            setShow3dGene={setShow3dGene}
+            infiniteScrollWorkers={infiniteScrollWorkers}
+            fetchGenomeAlignWorker={fetchGenomeAlignWorker}
+            currentState={currentState}
+            darkTheme={darkTheme}
+          />
+        </div>
+      ) : size.width > 0 ? (
+        <div style={{ width: size.width - 20, height: window.innerHeight }}>
+          <FlexLayout.Layout model={model} factory={factory} />
+        </div>
+      ) : (
+        ""
+      )}
+    </div>
+  );
+});
+
+export default GenomeRoot;
